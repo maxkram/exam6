@@ -52,7 +52,7 @@ void clientBufReset(char clientBuf[120000]){
 void broadcastToOthers(int clientFd, char* message){
     for (int fd = 0; fd < max_fd + 1; fd++){
         if (fd != clientFd) // To avoid sending to the author of the message
-            send(fd, message, strlen(message), MSG_NOSIGNAL); // In the Linux version, see the comment below
+            send(fd, message, strlen(message), SO_NOSIGPIPE); // In the Linux version, see the comment below
 
         /*
         Because there is no way to be sure a client is still connected while using send at this point

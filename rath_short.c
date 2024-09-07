@@ -21,27 +21,62 @@ void ft_error(const char *s) {
     exit(1);
 }
 
-char *str_join(char *buff, const char *add) {
-    int len_buff = buff ? strlen(buff) : 0;
-    int len_add = add ? strlen(add) : 0;
-    char *res = malloc(len_buff + len_add + 1);
-    if (!res) return NULL;
-    if (buff) strcpy(res, buff);
-    if (add) strcat(res, add);
-    free(buff);
-    return res;
+// char *str_join(char *buff, const char *add) {
+//     int len_buff = buff ? strlen(buff) : 0;
+//     int len_add = add ? strlen(add) : 0;
+//     char *res = malloc(len_buff + len_add + 1);
+//     if (!res) return NULL;
+//     if (buff) strcpy(res, buff);
+//     if (add) strcat(res, add);
+//     free(buff);
+//     return res;
+// }
+
+char *str_join(char *buf, char *add)
+{
+	char	*newbuf;
+	int		len;
+
+	if (buf == 0)
+		len = 0;
+	else
+		len = strlen(buf);
+	newbuf = malloc(sizeof(*newbuf) * (len + strlen(add) + 1));
+	if (newbuf == 0)
+		return (0);
+	newbuf[0] = 0;
+	if (buf != 0)
+		strcat(newbuf, buf);
+	free(buf);
+	strcat(newbuf, add);
+	return (newbuf);
 }
 
-int extract_msg(char **buff, char **msg) {
-    if (!*buff) return 0;
-    char *newline = strchr(*buff, '\n');
-    if (!newline) return 0;
-    *newline = '\0';
-    *msg = strdup(*buff);
-    char *newbuff = strdup(newline + 1);
-    free(*buff);
-    *buff = newbuff;
-    return 1;
+int extract_msg(char **buff, char **msg)
+{
+	int i = 0;
+	char *newbuff;
+
+	*msg = 0;
+	if (*buff == 0)
+		return (0);
+
+	while ((*buff)[i])
+	{
+		if ((*buff)[i] == '\n')
+		{
+			newbuff = calloc(strlen(*buff + i + 1) + 1, sizeof(*newbuff));
+			if (!newbuff)
+				return (-1);
+			strcpy(newbuff, (*buff + i + 1));
+			*msg = *buff;
+			(*msg)[i + 1] = 0;
+			*buff = newbuff;
+			return (1);
+		}
+		++i;
+	}
+	return (0);
 }
 
 void send_msg(int fd) {
