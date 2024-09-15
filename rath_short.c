@@ -8,6 +8,15 @@
 #define MAX_CLIENTS 5000
 #define BUFFER_SIZE 1001
 
+// Объявляются глобальные переменные:
+
+// maxSock: максимальный дескриптор сокета
+// msg: указатель на сообщение
+// g_cliId: массив идентификаторов клиентов
+// cliBuff: массив буферов клиентов
+// buff_sd, buff_rd: буферы для отправки и чтения
+// rd_set, wrt_set, atv_set: наборы файловых дескрипторов для select()
+
 int maxSock;
 char *msg = NULL;
 int g_cliId[MAX_CLIENTS];
@@ -21,16 +30,7 @@ void ft_error(const char *s) {
     exit(1);
 }
 
-// char *str_join(char *buff, const char *add) {
-//     int len_buff = buff ? strlen(buff) : 0;
-//     int len_add = add ? strlen(add) : 0;
-//     char *res = malloc(len_buff + len_add + 1);
-//     if (!res) return NULL;
-//     if (buff) strcpy(res, buff);
-//     if (add) strcat(res, add);
-//     free(buff);
-//     return res;
-// }
+// Функция для объединения двух строк.
 
 char *str_join(char *buf, char *add)
 {
@@ -51,6 +51,8 @@ char *str_join(char *buf, char *add)
 	strcat(newbuf, add);
 	return (newbuf);
 }
+
+// Функция для извлечения сообщения из буфера
 
 int extract_msg(char **buff, char **msg)
 {
@@ -79,6 +81,8 @@ int extract_msg(char **buff, char **msg)
 	return (0);
 }
 
+// Функция для отправки сообщения всем клиентам, кроме отправителя.
+
 void send_msg(int fd) {
     for (int sockId = 3; sockId <= maxSock; sockId++) {
         if (FD_ISSET(sockId, &wrt_set) && sockId != fd) {
@@ -89,24 +93,27 @@ void send_msg(int fd) {
 }
 
 int main(int argc, char **argv) {
+// Начало главной функции. Проверяется количество аргументов командной строки.
     if (argc != 2) ft_error("Usage: ./server <port>\n");
+// Объявляются переменные для сокетов и структур адресов.    
     int sockfd, connfd, cliId = 0;
     struct sockaddr_in servaddr = {0}, cliaddr;
     socklen_t len_cli = sizeof(cliaddr);
-
+// Настраивается структура адреса сервера.
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     servaddr.sin_port = htons(atoi(argv[1]));
-
+// Создается сокет, привязывается к адресу и начинает прослушивание.    
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0 ||
         bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0 ||
         listen(sockfd, SOMAXCONN) < 0) ft_error("Fatal error\n");
-
+// Инициализируется набор активных файловых дескрипторов.
     maxSock = sockfd;
     FD_ZERO(&atv_set);
     FD_SET(sockfd, &atv_set);
-
+// Начало основного цикла. Используется select() для мониторинга сокетов.
     while (1) {
+// Обработка нового подключения клиента.        
         rd_set = wrt_set = atv_set;
         if (select(maxSock + 1, &rd_set, &wrt_set, NULL, NULL) <= 0) continue;
         if (FD_ISSET(sockfd, &rd_set)) {
@@ -119,6 +126,9 @@ int main(int argc, char **argv) {
             cliBuff[connfd] = NULL;
             continue;
         }
+// Обработка данных от существующих клиентов. Если клиент отключился,
+// он удаляется из списка. Если получены данные, они обрабатываются
+// и рассылаются другим клиентам.        
         for (int sockId = 3; sockId <= maxSock; sockId++) {
             if (FD_ISSET(sockId, &rd_set) && sockId != sockfd) {
                 int rd = recv(sockId, buff_rd, BUFFER_SIZE - 1, 0);
