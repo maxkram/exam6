@@ -21,7 +21,7 @@ int client_counter = 0;
 char server_buffer[BUFFER];
 char client_buffer[BUFFER];
 
-void error_message(char *msg) {
+void err42(char *msg) {
     write(2, msg, strlen(msg));
     exit(1);
 }
@@ -56,11 +56,11 @@ void send_message(int fd, int len) {
 
 int main(int argc, char **argv) {
     if (argc != 2)
-        error_message("Wrong number of arguments\n");
+        err42("Wrong number of arguments\n");
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
-        error_message("Fatal error\n");
+        err42("Fatal error\n");
 
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
@@ -68,11 +68,11 @@ int main(int argc, char **argv) {
 	servaddr.sin_port = htons(atoi(argv[1]));
 
     if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) {
-         error_message("Fatal error\n");
+         err42("Fatal error\n");
     }
 
     if (listen(sockfd, 10) != 0) {
-        error_message("Fatal error\n");
+        err42("Fatal error\n");
     }
 
     FD_ZERO(&currentfd);

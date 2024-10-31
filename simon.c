@@ -6,10 +6,12 @@
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 int sockfd, maxfd, ids[1024], maxid = 0;
 fd_set perma, active;
 char msg[100], sending[2] = {};
 struct sockaddr_in servaddr = {0};
+
 void sendError(char *msgs){
     write(2, msgs, strlen(msgs));
     exit(1);
@@ -21,6 +23,7 @@ void sendAll(char * msgs, int id) {
         }
     }
 }
+
 int main(int argc, char **argv){
     if (argc != 2)
         sendError("Wrong number of arguments\n");

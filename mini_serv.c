@@ -5,19 +5,16 @@
 #include <sys/select.h> // select system call to monitor multiple file descriptors
 #include <arpa/inet.h>  // Functions for dealing with IP addresses, like htons, htonl
 
-#define MAX_CLIENTS 5000       // Maximum number of clients the server can handle
-#define BUFFER_SIZE 1001       // Buffer size for reading/writing messages (including '\0')
-
 int maxSock;                   // The largest file descriptor currently in use
 char *msg = NULL;              // Pointer to store extracted message
-int g_cliId[MAX_CLIENTS];      // Array storing client IDs for each socket
-char *cliBuff[MAX_CLIENTS];    // Buffer array for each client to store incoming messages
-char buff_sd[BUFFER_SIZE];     // Buffer used for sending data to clients
-char buff_rd[BUFFER_SIZE];     // Buffer used for reading data from clients
+int g_cliId[5000];      // Array storing client IDs for each socket
+char *cliBuff[5000];    // Buffer array for each client to store incoming messages
+char buff_sd[1001];     // Buffer used for sending data to clients
+char buff_rd[1001];     // Buffer used for reading data from clients
 fd_set rd_set, wrt_set, atv_set; // Sets of file descriptors for reading, writing, and active descriptors
 
 void ft_error(const char *s) {
-    perror(s);        // Print the error message
+    write(2, s, strlen(s));        // Print the error message
     exit(1);          // Exit the program with an error code
 }
 
@@ -90,6 +87,7 @@ int main(int argc, char **argv) {
         listen(sockfd, SOMAXCONN) < 0)                 // Start listening for connections
         ft_error("Fatal error\n");                     // Handle errors
 
+    FD_ZERO(&atv_set);
     FD_SET(maxSock = sockfd, &atv_set);                // Add the server socket to the active set
 
     while (1) {                                        // Main server loop
@@ -108,7 +106,7 @@ int main(int argc, char **argv) {
         }
         for (int sockId = 3; sockId <= maxSock; sockId++) {   // Iterate over all possible sockets
             if (FD_ISSET(sockId, &rd_set) && sockId != sockfd) {  // If a client socket has data to read
-                int rd = recv(sockId, buff_rd, BUFFER_SIZE - 1, 0); // Read data from the client
+                int rd = recv(sockId, buff_rd, 1000, 0); // Read data from the client
                 if (rd <= 0) {                            // If no data is received or error
                     FD_CLR(sockId, &atv_set);             // Remove the client from the active set
                     sprintf(buff_sd, "server: client %d just left\n", g_cliId[sockId]); // Notify all clients of the disconnection
@@ -119,7 +117,7 @@ int main(int argc, char **argv) {
                     buff_rd[rd] = '\0';                   // Null-terminate the received data
                     cliBuff[sockId] = str_join(cliBuff[sockId], buff_rd); // Append the received data to the client's buffer
                     while (extract_message(&cliBuff[sockId], &msg)) { // Extract any complete messages
-                        sprintf(buff_sd, "client %d: ", g_cliId[sockId]); // Prefix the message with the client ID
+                           // Prefix the message with the client ID
                         send_msg();                 // Send the message to all clients
                         free(msg);                        // Free the extracted message
                     }
