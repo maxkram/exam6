@@ -1,83 +1,98 @@
-#include <errno.h>
 #include <string.h>
 #include <unistd.h>
-#include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-int sockfd, maxfd, ids[1024], maxid = 0;
-fd_set perma, active;
-char msg[100], sending[2] = {};
-struct sockaddr_in servaddr = {0};
+    int sockfd, maxfd;
+    struct sockaddr_in servaddr;
+    fd_set readfd, currfd;
+    int indexe[FD_SETSIZE];
+    int cli_num = 0;
+    int BUFF = 200000;
+    char serv_buf[200000];
+    char cli_buf[200000];
 
-void sendError(char *msgs){
-    write(2, msgs, strlen(msgs));
+void err42(char *s) {
+    write (2, s, strlen(s));
     exit(1);
 }
-void sendAll(char * msgs, int id) {
-    for (int fd = 0; fd < maxfd +1; fd ++){
-        if (fd != id){
-            send(fd, msgs, strlen(msgs), SO_NOSIGPIPE);
-        }
+void broadcast(int clientfd, char* msg, int len)
+{
+    int fd = 0;
+    while (fd <= maxfd) {
+        if (clientfd != fd && FD_ISSET(fd, &currfd))
+            send(fd, msg,len,SO_NOSIGPIPE);
+        fd++;
     }
 }
-
-int main(int argc, char **argv){
-    if (argc != 2)
-        sendError("Wrong number of arguments\n");
+void send_msg(int client, int len) {
+    bzero(serv_buf, strlen(serv_buf));
+    sprintf(serv_buf, "client %d: ", indexe[client]);
+    broadcast(client, serv_buf, strlen(serv_buf));
+    char send;
+    int i = 0;
+    while (i < len) {
+        send = cli_buf[i];
+        broadcast(client, &send, 1);
+        if (i + 1 < len && send == '\n')
+            broadcast(client, serv_buf, strlen(serv_buf));
+        if (i + 1 == len && len == BUFF) {
+            bzero(cli_buf,strlen(cli_buf));
+            len = recv(client, cli_buf, BUFF, 0);
+            i = -1;
+        }
+        i++;
+    }
+}
+int main(int ac, char **av) {
+     if (ac != 2)
+        err42("Wrong number of arguments\n");
+    // socket create and verification
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1)
-        sendError("Fatal error\n");
+    if (sockfd == -1) {
+        err42("Fatal error\n");
+    }
+    bzero(&servaddr, sizeof(servaddr));
+    // assign IP, PORT
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(2130706433); //127.0.0.1
-    servaddr.sin_port = htons(atoi(argv[1]));
-    if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0)
-        sendError("Fatal error\n");
-    if (listen(sockfd, 128) != 0)
-        sendError("Fatal error\n");
-    FD_ZERO(&perma);
-    FD_SET(sockfd, &perma);
+    servaddr.sin_port = htons(atoi(av[1]));      ////changer ici pour atoi(av[1])
+    // Binding newly created socket to given IP and verification
+    if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) ||
+        listen(sockfd, 10) != 0)
+            err42("Fatal error\n");
+    FD_ZERO(&readfd);
+    FD_ZERO(&currfd);
+    FD_SET(sockfd, &currfd);
     maxfd = sockfd;
-    while(1){
-        active = perma;
-        if (select(maxfd+1, &active, NULL, NULL, NULL) < 0)
+    while(1) {
+        readfd = currfd;
+        if (select(maxfd + 1, &readfd,0,0,0) < 0)
             continue;
-        for (int id = 0; id < maxfd+1; id++){
-            if (!FD_ISSET(id, &active))
+        for(int fd = 0 ; fd <= maxfd; fd++) {
+            if (!(FD_ISSET(fd, &readfd)))
                 continue;
-            if (id == sockfd){
-                int client = accept(sockfd, NULL, NULL);
-                if (client < 0)
-                    continue;
-                if (client > maxfd)
-                    maxfd = client;
-                ids[client] = maxid++;
-                FD_SET(client, &perma);
-                sprintf(msg, "server: client %d just arrived\n", ids[client]);
-                sendAll(msg, client);
+            if (sockfd == fd ) {
+                int clientfd = accept(sockfd,0,0);
+                if (clientfd > maxfd)
+                    maxfd = clientfd;
+                indexe[clientfd] = cli_num++;
+                FD_SET(clientfd, &currfd);
+                sprintf(serv_buf, "server: client %d just arrived\n", indexe[clientfd] );
+                broadcast(clientfd, serv_buf, strlen(serv_buf));
             }
             else {
-                char buffer[200000];
-                int read = recv(id, buffer, 200000, 0);
-                if (read > 0){
-                    sprintf(msg, "client %d: ", ids[id]);
-                    sendAll(msg, id);
-                    for (int i = 0; i < read; i++){
-                        sending[0] = buffer[i];
-                        sendAll(sending, id);
-                        if (1 +i < read && sending[0] == '\n')
-                            sendAll(msg, id);
-                    }
-                    if (sending[0] != '\n')
-                        sendAll("\n", id);
+                int len = recv(fd, cli_buf, 200000, 0);
+                if (len > 0) {
+                    send_msg(fd,len);
                 }
-                else{
-                    sprintf(msg, "server: client %d just left\n", ids[id]);
-                    sendAll(msg, id);
-                    FD_CLR(id, &perma);
-                    close(id);
+                else {
+                    sprintf(serv_buf,"server: client %d just left\n", indexe[fd]);
+                    broadcast(fd, serv_buf, strlen(serv_buf));
+                    FD_CLR(fd, &currfd);
+                    close(fd);
                 }
             }
         }
