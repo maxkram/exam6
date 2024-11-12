@@ -6,16 +6,10 @@
 #include <sys/select.h>
 #include <netinet/in.h>
 
-int sockfd, maxfd;
+int sockfd, maxfd, ids[FD_SETSIZE], cnt = 0;
 struct sockaddr_in servaddr;
-
 fd_set currfd, readfd;
-
-int ids[FD_SETSIZE];
-int cnt = 0;
-
-char serv_buf[50];
-char cli_buf[50];
+char serv_buf[50], cli_buf[50];
 
 void err42(char *s)
 {
@@ -67,8 +61,6 @@ void send_msg(int fd, int len)
     //  исключением отправителя.
     for (int i = 0; i < len; i++)
     {
-        // Цикл по символам сообщения: создаётся массив send, предназначенный для отправки
-        // символов по одному. Цикл проходит по каждому символу в cli_buf, копируя его в send[0]
         send[0] = cli_buf[i];
         s_msg(fd, send, strlen(send));
         // Отправка символа: каждый символ передаётся всем клиентам с помощью s_msg, за
@@ -106,7 +98,7 @@ int main(int ac, char **av)
     servaddr.sin_addr.s_addr = htonl(2130706433); //127.0.0.1
     servaddr.sin_port = htons(atoi(av[1]));
 
-    if ((bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr))) != 0)
+    if (bind(sockfd, (const struct sockaddr *)&servaddr, sizeof(servaddr)) != 0)
         err42("Fatal error\n");
     // Переключение в режим прослушивания: listen(sockfd, 10) переводит сокет в режим прослушивания,
     // позволяя ему принимать входящие подключения. Параметр 10 задаёт максимальную длину очереди подключений

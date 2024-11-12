@@ -2,6 +2,8 @@
     "files.associations": {
         "stdlib.h": "c",
         "errno.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "select.h": "c",
+        "socket.h": "c"
     }
 }
